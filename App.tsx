@@ -1,5 +1,5 @@
-import {Platform, StyleSheet, Text, TextInput, TouchableOpacity, View} from 'react-native';
-import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import { Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import SoundPlayer from 'react-native-sound-player';
 import { StatusBar } from 'expo-status-bar';
@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import BottomSheet from '@gorhom/bottom-sheet';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Torch from 'react-native-torch';
-
+import Slider from '@react-native-community/slider';
 
 const morseCode: { [index: string]: string } = {
   a: '.-',
@@ -175,8 +175,8 @@ export default function App() {
   const [typingState, setTypingState] = useState<TypeState>('Normal');
   const [input, setInput] = useState('');
   const [morseCodeInput, setMorseCodeInput] = useState('');
-  const [interval, setInterval] = useState(200);
-  const [torchAllowed, setTorchAllowed] = useState(false)
+  const [interval, setInterval] = useState(500);
+  const [torchAllowed, setTorchAllowed] = useState(false);
   const isPlaying = useRef(false);
   const isFlashing = useRef(false);
 
@@ -221,16 +221,18 @@ export default function App() {
 
         if (shouldPlay) SoundPlayer.playSoundFile('beep', 'mp3');
 
-        await delay(duration);
+        await delay(duration/2);
 
         if (shouldPlay) SoundPlayer.pause();
+
+        await delay(duration/2);
       }
     } catch (e) {
       console.log(`cannot play the sound file`, e);
     } finally {
       isPlaying.current = false;
     }
-  }, [morseCodeInput, isPlaying.current]);
+  }, [morseCodeInput, isPlaying.current, interval]);
 
   const stopSound = useCallback(() => {
     isPlaying.current = false;
@@ -259,6 +261,7 @@ export default function App() {
         await delay(duration/2);
 
         if (shouldPlay) await Torch.switchState(false);
+
         await delay(duration/2);
 
       }
@@ -267,7 +270,7 @@ export default function App() {
     } finally {
       isFlashing.current = false;
     }
-  }, [morseCodeInput,isFlashing.current, torchAllowed]);
+  }, [morseCodeInput, isFlashing.current, torchAllowed, interval]);
 
   const flashLightStop = useCallback(() => {
     Torch.switchState(false);
@@ -281,19 +284,18 @@ export default function App() {
         Torch.switch(false);
       } else {
         const cameraAllowed = await Torch.requestCameraPermission(
-            'Camera Permissions',
-            'We require camera permissions to use the torch on the back of your phone.'
+          'Camera Permissions',
+          'We require camera permissions to use the torch on the back of your phone.',
         );
 
         setTorchAllowed(cameraAllowed);
-        if(cameraAllowed){
+        if (cameraAllowed) {
           Torch.switch(false);
         }
       }
-    }
+    };
 
-    request()
-
+    request();
   }, []);
 
   const toggleTypingState = useCallback(() => {
@@ -374,29 +376,53 @@ export default function App() {
             <Ionicons name="close-circle" size={32} color="black" />
           </TouchableOpacity>
         </View>
-        {(input.length > 0 || morseCodeInput.length > 0) && (
-          <View style={styles.buttonsWrapper}>
-            <Text style={styles.morseCodeLabel}> Morse code: </Text>
-            <View style={{ flexDirection: 'row' }}>
-              <TouchableOpacity style={styles.stopButton} onPress={stopSound}>
-                <Ionicons name="stop-circle" size={32} color="black" />
+
+        <View style={styles.buttonsWrapper}>
+          <Text style={styles.morseCodeLabel}> Morse code: </Text>
+          <View style={{ flexDirection: 'row' }}>
+            <TouchableOpacity style={styles.stopButton} onPress={stopSound}>
+              <Ionicons name="stop-circle" size={32} color="white" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.playButton} onPress={playSound}>
+              <Ionicons name="play-circle" size={32} color="white" />
+            </TouchableOpacity>
+            {torchAllowed && (
+              <TouchableOpacity style={styles.flashLightButton} onPress={flashLightStart}>
+                <Ionicons name="flash" size={32} color="white" />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.playButton} onPress={playSound}>
-                <Ionicons name="play-circle" size={32} color="black" />
+            )}
+            {torchAllowed && (
+              <TouchableOpacity style={styles.flashLightButton} onPress={flashLightStop}>
+                <Ionicons name="flash-off" size={32} color="white" />
               </TouchableOpacity>
-              {torchAllowed && <TouchableOpacity style={styles.flashLightButton} onPress={flashLightStart}>
-                <Ionicons name="flash" size={32} color="black"/>
-              </TouchableOpacity>}
-              {torchAllowed && <TouchableOpacity style={styles.flashLightButton} onPress={flashLightStop}>
-              <Ionicons name="flash-off" size={32} color="black"/>
-            </TouchableOpacity>}
-            </View>
+            )}
           </View>
-        )}
+        </View>
+
         <Text style={styles.morseCode}>{morseCodeInput}</Text>
-        <TouchableOpacity style={styles.toggleTypingButton} onPress={toggleTypingState}>
-          <Ionicons name="swap-horizontal" size={32} color="white" />
-        </TouchableOpacity>
+        <View style={styles.bottomMenuWrapper}>
+          <View style={styles.sliderWrapper}>
+            <Text style={styles.sliderLabel}>
+              Duration: {interval} in milliseconds
+            </Text>
+            <Slider
+                value={interval}
+                onValueChange={value => setInterval(value)}
+                minimumValue={200}
+                maximumValue={1000}
+                style={styles.slider}
+                thumbTintColor={'white'}
+                minimumTrackTintColor={'white'}
+                tapToSeek={true}
+                step={1}
+            />
+          </View>
+
+          <TouchableOpacity onPress={toggleTypingState}>
+            <Ionicons name="swap-horizontal" size={32} color="white" />
+          </TouchableOpacity>
+        </View>
+
         <BottomSheet
           ref={bottomSheetRef}
           index={-1}
@@ -450,7 +476,7 @@ const styles = StyleSheet.create({
   },
   morseCode: {
     color: '#dbdbdb',
-    fontSize: 18,
+    fontSize: 22,
     fontFamily: 'monospace',
   },
   inputRow: {
@@ -477,11 +503,25 @@ const styles = StyleSheet.create({
   flashLightButton: {
     padding: 12,
   },
-  toggleTypingButton: {
+  bottomMenuWrapper: {
     padding: 12,
     position: 'absolute',
+    width: '100%',
     bottom: 16,
-    right: 16,
+    flexDirection: 'row',
+  },
+  sliderLabel:{
+    fontSize: 16,
+    color: 'white',
+    padding: 12,
+  },
+  sliderWrapper:{
+    flex: 1,
+    justifyContent: 'center',
+    alignItems:'center',
+  },
+  slider:{
+    width: '100%',
   },
   morseButtonWrapper: {
     flexDirection: 'row',
